@@ -1,0 +1,139 @@
+// AIcad — data model
+// Switch `provider` to "postgresql" and update DATABASE_URL to move off SQLite.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// An upstream account you hold credentials for (one API key = one Provider row).
+model Provider {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  /// Adapter to use: anthropic | openai | google | openai_compatible
+  kind      String
+  /// Override for openai_compatible (OpenRouter, Groq, DeepSeek, Ollama, vLLM...).
+  baseUrl   String?
+  /// AES-256-GCM ciphertext. Never returned by the admin API.
+  apiKeyEnc String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  models Model[]
+}
+
+/// A routable model. `alias` is the name clients send as "model".
+model Model {
+  id         String   @id @default(cuid())
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  /// Gateway-facing name, e.g. "claude-opus-5" or "fast-cheap".
+  alias         String  @unique
+  /// The provider's real model id, e.g. "claude-opus-5", "gpt-5-mini".
+  upstreamModel String
+  displayName   String?
+
+  inputPricePerMTok  Float @default(0)
+  outputPricePerMTok Float @default(0)
+
+  contextWindow   Int?
+  maxOutputTokens Int?
+
+  enabled Boolean @default(true)
+  /// Auto-routing tiebreak; lower wins.
+  priority Int    @default(100)
+  /// Comma-separated capability tags, e.g. "cheap,fast,vision".
+  tags     String @default("")
+  /// Send Anthropic adaptive thinking / OpenAI reasoning by default.
+  reasoning Boolean @default(false)
+
+  // ---- Credit limits, enforced per rolling period ----
+  /// Max tokens (prompt + completion) per period. null = unlimited.
+  limitTokens    Float?
+  /// Max spend in USD per period. null = unlimited.
+  limitUsd       Float?
+  /// daily | weekly | monthly | total
+  period         String  @default("monthly")
+  /// Fraction of a limit that flips the model to "warning", e.g. 0.8.
+  alertThreshold Float   @default(0.8)
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  usage     UsageLog[]
+
+  @@index([enabled])
+}
+
+/// A gateway API key issued to a client. The raw key is shown once, at creation.
+model ApiKey {
+  id        String  @id @default(cuid())
+  name      String
+  /// sha256(rawKey)
+  keyHash   String  @unique
+  /// First 12 chars, for display: "gw_live_a1b2".
+  keyPrefix String
+  enabled   Boolean @default(true)
+
+  /// Per-key budget, independent of per-model budgets.
+  limitTokens Float?
+  limitUsd    Float?
+  period      String @default("monthly")
+
+  /// Comma-separated model aliases this key may use. Empty = all enabled models.
+  allowedModels String @default("")
+
+  createdAt  DateTime   @default(now())
+  lastUsedAt DateTime?
+  usage      UsageLog[]
+}
+
+/// One row per gateway request, successful or not. Source of truth for spend.
+model UsageLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  apiKeyId String?
+  apiKey   ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  modelId String?
+  model   Model?  @relation(fields: [modelId], references: [id], onDelete: SetNull)
+
+  /// Denormalized so history survives deletes/renames.
+  modelAlias   String
+  providerKind String
+  providerName String
+
+  /// What the client asked for: an alias, "auto", or "auto:tag".
+  requestedModel String
+  /// explicit | auto | fallback
+  routedReason   String
+
+  promptTokens     Int   @default(0)
+  completionTokens Int   @default(0)
+  totalTokens      Int   @default(0)
+  costUsd          Float @default(0)
+
+  latencyMs Int     @default(0)
+  /// ok | error | rejected
+  status    String  @default("ok")
+  errorCode String?
+  errorMsg  String?
+  stream    Boolean @default(false)
+
+  @@index([createdAt])
+  @@index([modelId, createdAt])
+  @@index([apiKeyId, createdAt])
+}
+
+/// Global key/value config (router strategy, etc.).
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
