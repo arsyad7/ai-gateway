@@ -119,6 +119,27 @@ from the live database as of 2026-09-29:
 Error breakdown over the same period: 3 `stream_interrupted`, 2 `cli_error`,
 1 `codex_error`, 1 `invalid_model`, 1 `upstream_401`, 2 unclassified.
 
+The dashboard as it looked on 2026-09-29. The tall bar on 09-22 is the day the
+agent loop and the CLI adapters were being exercised hardest; the credit
+meters at the bottom are what `auto` routing reads.
+
+![Overview](screenshots/overview.png)
+
+Every request is logged with the model that was requested, the model that
+served it, and the route reason, so fallbacks and agent iterations are
+visible rather than hidden inside a total:
+
+![Recent requests](screenshots/recent-requests.png)
+
+Per-key usage shows the three clients that used the gateway, one of them a
+laptop reaching it through the Cloudflare tunnel:
+
+![API keys](screenshots/api-keys.png)
+
+The extension in VS Code, in agent mode, pointed at the gateway:
+
+<p><img src="screenshots/vscode-extension.png" alt="VS Code extension" width="360"></p>
+
 <!-- TODO(arsyad): what did you actually use it for day to day? Which agent
      tasks worked, which did not? One concrete example is worth more than a
      list. -->

@@ -21,6 +21,37 @@ and **token/credit limit monitoring**.
 Providers supported: **Anthropic (Claude)**, **OpenAI**, **Google Gemini**, and
 any **OpenAI-compatible** server (OpenRouter, Groq, DeepSeek, Ollama, vLLM…).
 
+## Screenshots
+
+**Overview**: totals, tokens per day by model, and the per-model credit meters
+that drive `auto` routing.
+
+![Overview](docs/screenshots/overview.png)
+
+**Recent requests**: every call with what was requested, what served it, and
+why (`explicit`, `auto`, `fallback`, `agent`), plus tokens, cost and latency.
+
+![Recent requests](docs/screenshots/recent-requests.png)
+
+**Models & Limits**: alias, upstream model, prices, and the token/USD budget
+per period.
+
+![Models and limits](docs/screenshots/models-limits.png)
+
+<details>
+<summary>API keys and the Agent playground</summary>
+
+![API keys](docs/screenshots/api-keys.png)
+
+![Agent playground](docs/screenshots/agent.png)
+
+</details>
+
+**VS Code extension** ([separate repo](https://github.com/arsyad7/ai-gateway-vscode)):
+chat and an approval-gated agent, pointed at this gateway.
+
+<p><img src="docs/screenshots/vscode-extension.png" alt="VS Code extension" width="360"></p>
+
 ## Setup
 
 ```bash
