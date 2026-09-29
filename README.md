@@ -98,6 +98,37 @@ token counts, cost, and latency. Costs are computed from each response's real
 usage numbers (cache reads/writes priced at 0.1×/1.25× input rate where
 providers report them).
 
+## Keeping it running (Windows, no admin needed)
+
+`GET /api/health` is an unauthenticated probe: `200 {"status":"ok","uptimeSec",
+"pid","checks":{"db":"ok"}}`, or `503` when the database cannot be reached, so
+a server that is up but broken is treated like one that is down.
+
+`scripts/watchdog.ps1` runs every minute from a per-user scheduled task and:
+
+- restarts the gateway when `/api/health` does not answer 200 within 10 s
+  (clearing whatever still holds the port first);
+- restarts `cloudflared` when no tunnel process exists for the port, or when
+  its log shows a reconnect attempt after the last successful registration
+  (a quick tunnel cannot recover its hostname once the edge connection drops);
+- writes the current quick-tunnel URL to `logs/tunnel-url.txt`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-watchdog.ps1              # every minute + at logon
+powershell -ExecutionPolicy Bypass -File scripts\install-watchdog.ps1 -Uninstall
+```
+
+Why it exists: the gateway used to be started from a terminal. When that shell
+went away the server went with it, Cloudflare answered `530` to every client,
+and nothing showed up in the usage log because the failed requests never
+reached the gateway. Processes started by the Task Scheduler do not inherit a
+terminal's lifetime. See `docs/WRITEUP.md` for the incident.
+
+Logs live in `logs/` (`gateway.out.log`, `tunnel.log`, `watchdog.log`). The
+task only runs while you are logged in; a quick tunnel gets a new hostname on
+every restart, so use a named tunnel (`cloudflared tunnel login`, then
+`cloudflared tunnel create` + `cloudflared service install`) for a stable URL.
+
 ## Notes
 
 - Budget checks read the current period's usage at request time; a request
